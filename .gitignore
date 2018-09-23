@@ -1,0 +1,8 @@
+*.swp
+*.egg-info/
+.env
+venv/
+__pycache__/
+tags
+.pytest_cache/
+scratch/
