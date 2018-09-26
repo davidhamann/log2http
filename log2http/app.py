@@ -1,55 +1,77 @@
-CONFIG = [
-    {
-        'logfile': '/Users/dh/Desktop/example.log',
-        'endpoint': 'http://localhost:5000/bulk/token/tag/example',
-        'min_lines': 5 # send logs to endpoint once min_lines is reached
-    },
-    {
-        'logfile': '/var/log/system.log',
-        'endpoint': 'http://localhost:5000/bulk/token/tag/syslog,macos',
-        'min_lines': 2
-    }
-]
+'''
+log2http
 
-"""
-[
-    [fileobj, ['line 1', 'line 2']],
-    [fileobj, ['some line']]
-]
-"""
+Usage:
+  log2http
+  log2http [--config=/path/to/log2http.yml]
+  log2http -h | --help
+  log2http --version
+
+Options:
+  -h --help                         Show this help
+  --version                         Show version
+  --config=<path>                   Path to YAML config file
+
+Example:
+  log2http --config=/etc/log2http.yml
+
+Help:
+  https://github.com/davidhamann/log2http
+'''
 
 import os
 import time
+from typing import List, IO
+import requests
+import yaml
+from . import __version__
 
 class LogCollector(object):
     def __init__(self, config):
-        self.config = config #FIXME: consolidate; use files or config, not both
-        self.files = []
+        self.config = config
+        self._files = List[IO, List] = [] # stores file objects and collected lines per file
 
-    def send(self, file_idx):
-        print(f'Would send to http endpoint {self.config[file_idx]["endpoint"]} now.')
+    def send(self, file_idx: int) -> None:
+        '''Sends collected log lines to http endpoint specified in config.'''
+        data = '\n'.join(self._files[file_idx][1])
+        requests.post(self.config[file_idx]["endpoint"], data=data)
+        print(f'sending to http endpoint {self.config[file_idx]["endpoint"]} now.')
 
-    def open(self):
-        # open files to watch
+    def open(self) -> None:
+        '''opens files to watch and adds them to _files.'''
         for entry in self.config:
             f = open(entry.get('logfile'))
+
+            # seek to end so that we only collect new lines from now
             f.seek(0, os.SEEK_END)
-            self.files.append([f, []])
+            self._files.append([f, []])
 
-    def reset_lines(self, file_idx):
-        print('Resetting contents...')
-        self.files[file_idx][1].clear()
+    def reset_lines(self, file_idx: int) -> None:
+        '''Resets the collected lines for the specified file index.'''
+        self._files[file_idx][1].clear()
 
-    def collect(self, interval=1):
+    def collect(self, interval: int = 1):
+        '''Starts collection loop.
 
-        self.open() # open files
+        Starts watching files specified in config and runs indefinitely to collect and send
+        data added to those files.
+
+        Parameters
+        ----------
+        interval : int
+            Collection interval in seconds in which to check for file additions.
+            Value is used to time.sleep() in between the runs.
+
+        '''
+
+        self.open() # open files to watch
 
         while True:
-            for i, f in enumerate(self.files):
-                lines = f[0].readlines()
+            for i, logfile in enumerate(self._files):
+                lines = logfile[0].readlines()
                 if lines:
-                    self.files[i][1] += lines
-                    collected = self.files[i][1]
+                    self._files[i][1] += lines
+                    collected = self._files[i][1]
                     print(f"collected {collected}")
                     if len(collected) > self.config[i].get('min_lines'): #FIXME
                         self.send(i)
@@ -58,8 +80,27 @@ class LogCollector(object):
                 time.sleep(interval)
 
 def main():
-    collector = LogCollector(CONFIG)
+    '''CLI entry point'''
+    options = docopt(__doc__, version=__version__)
+
+    # load config from argument or defaut location
+    config_path = options['--config']
+    config = load_config(config_path)
+
+    # start collection loop with settings in config
+    collector = LogCollector(config)
     collector.collect()
 
-if __name__ == '__main__':
-    main()
+def load_config(path: str = None):
+    '''Loads yaml config from given path or default location.'''
+    if not path:
+        path = '/etc/log2http.yml'
+
+    with open(path) as stream:
+        try:
+            config = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            #FIXME: handle exception
+            raise exc
+
+    return config
