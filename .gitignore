@@ -6,3 +6,4 @@ __pycache__/
 tags
 .pytest_cache/
 scratch/
+.mypy_cache/

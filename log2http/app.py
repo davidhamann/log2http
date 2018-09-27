@@ -21,21 +21,23 @@ Help:
 
 import os
 import time
-from typing import List, IO
+from typing import Dict, List, IO, Union
+from docopt import docopt
 import requests
 import yaml
 from . import __version__
 
 class LogCollector(object):
-    def __init__(self, config):
+    def __init__(self, config: List[Dict[str, Union[str, int]]]) -> None: #FIXME mypy
         self.config = config
-        self._files = List[IO, List] = [] # stores file objects and collected lines per file
+        self._files: List[List[Union[IO, List[str]]]] = [] # stores file objects and collected lines per file
 
     def send(self, file_idx: int) -> None:
         '''Sends collected log lines to http endpoint specified in config.'''
         data = '\n'.join(self._files[file_idx][1])
-        requests.post(self.config[file_idx]["endpoint"], data=data)
+        res = requests.post(self.config[file_idx]["endpoint"], data=data)
         print(f'sending to http endpoint {self.config[file_idx]["endpoint"]} now.')
+        #print(res.text)
 
     def open(self) -> None:
         '''opens files to watch and adds them to _files.'''
@@ -50,7 +52,7 @@ class LogCollector(object):
         '''Resets the collected lines for the specified file index.'''
         self._files[file_idx][1].clear()
 
-    def collect(self, interval: int = 1):
+    def collect(self, interval: int = 1) -> None:
         '''Starts collection loop.
 
         Starts watching files specified in config and runs indefinitely to collect and send
@@ -79,7 +81,7 @@ class LogCollector(object):
 
                 time.sleep(interval)
 
-def main():
+def main() -> None:
     '''CLI entry point'''
     options = docopt(__doc__, version=__version__)
 
@@ -91,7 +93,7 @@ def main():
     collector = LogCollector(config)
     collector.collect()
 
-def load_config(path: str = None):
+def load_config(path: str = None) -> List:
     '''Loads yaml config from given path or default location.'''
     if not path:
         path = '/etc/log2http.yml'

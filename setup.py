@@ -15,7 +15,10 @@ setup(
     url='https://github.com/davidhamann/log2http',
     packages=['log2http'],
     include_package_data=True,
-    install_requires=['requests>=2'],
+    install_requires=['requests>=2', 'docopt'],
+    entry_points={
+        'console_scripts': ['log2http=log2http.app:main']
+    },
     classifiers=(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.6',
