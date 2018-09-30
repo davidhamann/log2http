@@ -21,16 +21,30 @@ Help:
 
 import os
 import time
-from typing import Dict, List, IO, Union
+from typing import Dict, List, IO, Tuple, Any
+from mypy_extensions import TypedDict
 from docopt import docopt
 import requests
 import yaml
 from . import __version__
 
+class Config(TypedDict):
+    '''Define typing for config'''
+    logfile: str
+    endpoint: str
+    min_lines: int
+
 class LogCollector(object):
-    def __init__(self, config: List[Dict[str, Union[str, int]]]) -> None: #FIXME mypy
+    def __init__(self, config: List[Config]) -> None:
         self.config = config
-        self._files: List[List[Union[IO, List[str]]]] = [] # stores file objects and collected lines per file
+
+        # stores file objects and collected lines per file
+        self._files: List[Tuple[IO, List[str]]] = []
+
+        # validate config
+        for entry in self.config:
+            if entry.keys() != set(('endpoint', 'logfile', 'min_lines')):
+                raise ValueError('Config contains invalid or incomplete keys')
 
     def send(self, file_idx: int) -> None:
         '''Sends collected log lines to http endpoint specified in config.'''
@@ -42,11 +56,11 @@ class LogCollector(object):
     def open(self) -> None:
         '''opens files to watch and adds them to _files.'''
         for entry in self.config:
-            f = open(entry.get('logfile'))
+            f = open(entry['logfile'])
 
             # seek to end so that we only collect new lines from now
             f.seek(0, os.SEEK_END)
-            self._files.append([f, []])
+            self._files.append((f, []))
 
     def reset_lines(self, file_idx: int) -> None:
         '''Resets the collected lines for the specified file index.'''
@@ -72,10 +86,10 @@ class LogCollector(object):
             for i, logfile in enumerate(self._files):
                 lines = logfile[0].readlines()
                 if lines:
-                    self._files[i][1] += lines
+                    self._files[i][1].extend(lines)
                     collected = self._files[i][1]
                     print(f"collected {collected}")
-                    if len(collected) > self.config[i].get('min_lines'): #FIXME
+                    if len(collected) > self.config[i]['min_lines']:
                         self.send(i)
                         self.reset_lines(i)
 
