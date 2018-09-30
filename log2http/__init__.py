@@ -1,3 +1,4 @@
-from pkg_resources import get_distribution
+"""log2http watches log files and sends new contents to a specified http endpoint."""
 
-__version__ = get_distribution('log2http').version
+from .const import __version__
+from .app import LogCollector, load_config

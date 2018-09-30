@@ -20,13 +20,15 @@ Help:
 '''
 
 import os
+import sys
 import time
-from typing import Dict, List, IO, Tuple, Any
+from typing import List, IO, Tuple, Optional
+from pathlib import Path
 from mypy_extensions import TypedDict
 from docopt import docopt
 import requests
 import yaml
-from . import __version__
+from .const import __version__
 
 class Config(TypedDict):
     '''Define typing for config'''
@@ -103,14 +105,21 @@ def main() -> None:
     config_path = options['--config']
     config = load_config(config_path)
 
-    # start collection loop with settings in config
-    collector = LogCollector(config)
-    collector.collect()
+    if config:
+        # start collection loop with settings in config
+        collector = LogCollector(config)
+        collector.collect()
+    else:
+        sys.exit('Could not find configuration file. Please specify via --config.')
 
-def load_config(path: str = None) -> List:
+def load_config(path: str = None) -> Optional[List]:
     '''Loads yaml config from given path or default location.'''
     if not path:
         path = '/etc/log2http.yml'
+
+    config_file = Path(path)
+    if not config_file.is_file():
+        return None
 
     with open(path) as stream:
         try:
