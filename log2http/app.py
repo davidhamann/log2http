@@ -44,6 +44,9 @@ class LogCollector(object):
         self._files: List[Tuple[IO, List[str]]] = []
 
         # validate config
+        if not config:
+            raise ValueError('Config contains no files to watch')
+
         for entry in self.config:
             if entry.keys() != set(('endpoint', 'logfile', 'min_lines')):
                 raise ValueError('Config contains invalid or incomplete keys')
@@ -51,8 +54,9 @@ class LogCollector(object):
     def send(self, file_idx: int) -> None:
         '''Sends collected log lines to http endpoint specified in config.'''
         data = '\n'.join(self._files[file_idx][1])
-        res = requests.post(self.config[file_idx]["endpoint"], data=data)
-        print(f'sending to http endpoint {self.config[file_idx]["endpoint"]} now.')
+
+        print(f'sending to http endpoint {self.config[file_idx]["endpoint"]}.')
+        requests.post(self.config[file_idx]["endpoint"], data=data)
         #print(res.text)
 
     def open(self) -> None:

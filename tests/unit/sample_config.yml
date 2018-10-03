@@ -1,0 +1,9 @@
+-
+  logfile: /Users/demo/example.log
+  endpoint: http://endpoint1.example.com
+  min_lines: 5
+-
+  logfile: /var/log/system.log
+  endpoint: http://endpoint2.example.com
+  min_lines: 2
+
