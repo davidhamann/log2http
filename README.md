@@ -8,7 +8,7 @@ You will need Python >= 3.6.
 
 Install the application like this (preferably in a [virtualenv](https://virtualenv.pypa.io/en/stable/)):
 
-`pip install https://github.com/davidhamann/log2http/archive/master.zip`
+`pip install log2http`
 
 # Setup
 
@@ -31,7 +31,7 @@ Place a YAML config file like the following at a location of your preference:
 
 # Usage
 
-Once installed you can launch log2http from your terminal
+Once installed you can launch log2http from your terminal:
 
 `log2http --config=/path/to/the/config.yml`
 
