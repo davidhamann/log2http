@@ -5,11 +5,11 @@ with open("README.md", "r") as ld:
 
 setup(
     name='log2http',
-    version='0.0.1',
+    version='0.1.0',
     python_requires='>=3.6',
     author='David Hamann',
     author_email='dh@davidhamann.de',
-    description='log2http sends your log data to a desired http endpoint',
+    description='log2http watches log files and sends new contents to a specified http endpoint.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/davidhamann/log2http',
@@ -25,8 +25,12 @@ setup(
         'console_scripts': ['log2http=log2http.app:main']
     },
     classifiers=(
+        'Development Status :: 4 - Beta',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.6',
         'License :: OSI Approved :: MIT License',
+        'Intended Audience :: System Administrators',
+        'Operating System :: Unix',
+        'Environment :: Console'
     )
 )

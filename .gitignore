@@ -7,3 +7,5 @@ tags
 .pytest_cache/
 scratch/
 .mypy_cache/
+build/
+dist/
