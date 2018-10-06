@@ -1,9 +1,6 @@
 import unittest
 import os
 import tempfile
-import time
-import threading
-from docopt import docopt
 import mock
 import requests
 from log2http import load_config, LogCollector
