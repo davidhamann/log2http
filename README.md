@@ -2,7 +2,7 @@
 
 log2http watches log files and sends new contents to a specified http endpoint. That's it.
 
-# Install
+## Install
 
 You will need Python >= 3.6.
 
@@ -10,7 +10,7 @@ Install the application like this (preferably in a [virtualenv](https://virtuale
 
 `pip install log2http`
 
-# Setup
+## Setup
 
 Place a YAML config file like the following at a location of your preference:
 
@@ -25,17 +25,17 @@ Place a YAML config file like the following at a location of your preference:
   min_lines: 2
 ```
 
-- `logfile` specifies the file to watch.
+- `logfile` specifies the file to watch
 - `endpoint` is the http endpoint you want to send the collected log lines to (as POST). Usually, this will be the url of a logging service, e.g. `http://logs-01.loggly.com/bulk/token/tag/example/`
 - `min_lines` sets the minimum of lines that must be collected until a http request is made (use this to minimize http overhead per logged event)
 
-# Usage
+## Usage
 
-Once installed you can launch log2http from your terminal:
+Once installed, you can launch log2http from your terminal:
 
 `log2http --config=/path/to/the/config.yml`
 
-Once log2http is running, create some sample events to see if they are being collected. For example in bash:
+When log2http is running, create some sample events to see if they are being collected. For example in bash:
 
 `for i in {1..6}; do echo "hello world" >> example.log; done`
 
@@ -52,7 +52,7 @@ with collector:
     collector.start() # will run until interrupted
 ```
 
-# Local development
+## Local development
 
 See `requirements-dev.txt` for development requirements.
 
