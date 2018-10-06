@@ -4,25 +4,35 @@ import tempfile
 import time
 import threading
 from docopt import docopt
+import mock
+import requests
 from log2http import load_config, LogCollector
 
 class Log2HttpTestCase(unittest.TestCase):
-    """log2http test suite"""
+    '''log2http test suite'''
 
     def setUp(self) -> None:
-        """Prepare test environment"""
+        '''Prepare test environment'''
 
         # get path of sample yml config to test config loader
         self.sample_yml_config = os.path.join(os.path.dirname(__file__), 'sample_config.yml')
 
-        # prepare fake config dict to use on temp file
+        # prepare fake config dict with temp file
+        self.fake_log = tempfile.NamedTemporaryFile(mode="a+", prefix='log2http_', delete=False)
         self.fake_config = [{
-            'endpoint': 'http://111.111.111.111/fake/',
-            'min_lines': 1
+            'endpoint': 'http://127.0.0.1/fake/',
+            'min_lines': 3,
+            'logfile': self.fake_log.name
         }]
 
+    def tearDown(self):
+        '''Close and remove temp file'''
+        logfile = self.fake_log.name
+        self.fake_log.close()
+        os.remove(logfile)
+
     def test_config_loader(self) -> None:
-        """Test yml config loading"""
+        '''Test yml config loading'''
         config = load_config(self.sample_yml_config)
 
         # test that loaded yml config file contains exactly 2 entries
@@ -32,7 +42,7 @@ class Log2HttpTestCase(unittest.TestCase):
         self.assertEqual(config[0].keys(), set(('logfile', 'endpoint', 'min_lines')))
 
     def test_fail_on_invalid_config(self) -> None:
-        """Test that an empty/invalid config raises a ValueError"""
+        '''Test that an empty/invalid config raises a ValueError'''
         empty_config = []
         incomplete_config = [{'logfile': '/var/log/system.log'}]
 
@@ -42,35 +52,19 @@ class Log2HttpTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             LogCollector(incomplete_config)
 
-    def test_collect(self) -> None:
-        # FIXME: mock http endpoint
-        # FIXME: termination signal
+    # FIXME: basic test for LogCollector. Still missing tests for other methods.
+    @mock.patch.object(requests, 'post')
+    def test_collect(self, mock_post) -> None:
+        '''Test collecting new lines'''
+        mock_response = mock.Mock()
+        mock_post.return_value = mock_response
+        mock_response.status_code = 200
 
-        # create temporary file to use as "fake" log file
-        with tempfile.NamedTemporaryFile(mode="a+") as fake_log:
-            # add fake_log to fake_config, then pass to collector to watch
-            self.fake_config[0]['logfile'] = fake_log.name
+        sample_events = ['Oct  6 18:41:53 Sample event\n', 'Oct  6 19:01:36 Another one\n']
+        with LogCollector(self.fake_config) as collector:
+            collector.open()
+            self.fake_log.write(''.join(sample_events))
+            self.fake_log.flush()
+            collector.collect()
 
-            # run collector in separate thread so that it is able to watch what we
-            # will write into the temp file
-            collector_thread = CollectorThread(self.fake_config)
-            collector_thread.daemon = True # daemonize to exit entire app when only the thread is left
-            collector_thread.start()
-
-            # append to fake log file after short delay
-            time.sleep(1)
-            fake_log.write("one\ntwo")
-            fake_log.flush()
-
-            print('thread id', collector_thread.ident)
-            print(fake_log.name)
-            collector_thread.join() # FIXME: will never end; handle termination signal event
-
-class CollectorThread(threading.Thread):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
-
-    def run(self):
-        collector = LogCollector(self.config)
-        collector.collect()
+            self.assertEqual(collector.lines[0], sample_events)
