@@ -21,6 +21,7 @@ Help:
 
 import os
 import sys
+import signal
 import time
 from typing import List, IO, Tuple, Optional
 from pathlib import Path
@@ -39,6 +40,7 @@ class Config(TypedDict):
 class LogCollector(object):
     def __init__(self, config: List[Config]) -> None:
         self.config = config
+        self.interrupt = False
 
         # stores file objects and collected lines per file
         self._files: List[Tuple[IO, List[str]]] = []
@@ -51,55 +53,91 @@ class LogCollector(object):
             if entry.keys() != set(('endpoint', 'logfile', 'min_lines')):
                 raise ValueError('Config contains invalid or incomplete keys')
 
+    def __enter__(self) -> 'LogCollector':
+        return self
+
+    def __exit__(self, *args) -> None:
+        self.close()
+
     def send(self, file_idx: int) -> None:
         '''Sends collected log lines to http endpoint specified in config.'''
-        data = '\n'.join(self._files[file_idx][1])
+        data = ''.join(self._files[file_idx][1])
 
-        print(f'sending to http endpoint {self.config[file_idx]["endpoint"]}.')
-        requests.post(self.config[file_idx]["endpoint"], data=data)
-        #print(res.text)
+        res = requests.post(self.config[file_idx]["endpoint"], data=data)
+        if res.status_code == 200:
+            self.reset_lines(file_idx)
+            print(f'Sent to http endpoint {self.config[file_idx]["endpoint"]}.')
+        else:
+            print(f'Sending failed; keeping contents. Response {res.text}')
 
     def open(self) -> None:
         '''opens files to watch and adds them to _files.'''
         for entry in self.config:
-            f = open(entry['logfile'])
+            logfile = open(entry['logfile'])
 
             # seek to end so that we only collect new lines from now
-            f.seek(0, os.SEEK_END)
-            self._files.append((f, []))
+            logfile.seek(0, os.SEEK_END)
+            self._files.append((logfile, []))
+
+    def close(self) -> None:
+        '''closes files in _files and sends lines collected (and not sent) so far'''
+        for i, logfile in enumerate(self._files):
+            logfile[0].close()
+            collected = self._files[i][1]
+            if collected:
+                # indepentend of min_lines, send everything colllected but not sent yet
+                self.send(i)
 
     def reset_lines(self, file_idx: int) -> None:
         '''Resets the collected lines for the specified file index.'''
         self._files[file_idx][1].clear()
 
-    def collect(self, interval: int = 1) -> None:
+    def collect(self) -> None:
+        '''Reads in new lines from log files.'''
+        for i, logfile in enumerate(self._files):
+            lines = logfile[0].readlines()
+            if lines:
+                self._files[i][1].extend(lines)
+                collected = self._files[i][1]
+                print(f"collected {len(lines)} new events from {logfile[0].name}")
+                if len(collected) >= self.config[i]['min_lines']:
+                    self.send(i)
+
+    def start(self, interval: int = 1) -> None:
         '''Starts collection loop.
 
-        Starts watching files specified in config and runs indefinitely to collect and send
-        data added to those files.
+        Starts watching files specified in config and runs until interrupted to collect and send
+        data added to those files. Breaks on SIGINT.
 
         Parameters
         ----------
         interval : int
             Collection interval in seconds in which to check for file additions.
             Value is used to time.sleep() in between the runs.
-
         '''
 
         self.open() # open files to watch
 
-        while True:
-            for i, logfile in enumerate(self._files):
-                lines = logfile[0].readlines()
-                if lines:
-                    self._files[i][1].extend(lines)
-                    collected = self._files[i][1]
-                    print(f"collected {collected}")
-                    if len(collected) > self.config[i]['min_lines']:
-                        self.send(i)
-                        self.reset_lines(i)
+        # setup SIGINT handler
+        # signal handler gets signal and frame. Wrap in lambda to be able to use
+        # own signal handler as class method expecting self
+        signal.signal(signal.SIGINT, lambda signal, frame: self._signal_handler())
 
-                time.sleep(interval)
+        while True: # continue to collect and send new lines
+            self.collect()
+            time.sleep(interval)
+
+            if self.interrupt:
+                break
+
+    @property
+    def lines(self):
+        return [f[1] for f in self._files]
+
+    def _signal_handler(self) -> None:
+        '''Will handle interrupt signal to interrupt collector loop'''
+        print('Stopping...')
+        self.interrupt = True
 
 def main() -> None:
     '''CLI entry point'''
@@ -112,7 +150,8 @@ def main() -> None:
     if config:
         # start collection loop with settings in config
         collector = LogCollector(config)
-        collector.collect()
+        with collector:
+            collector.start()
     else:
         sys.exit('Could not find configuration file. Please specify via --config.')
 
