@@ -97,6 +97,19 @@ class LogCollector(object):
         for i, logfile in enumerate(self._files):
             lines = logfile[0].readlines()
             if lines:
+                # we've read in one or more new lines for this file. Now we need to check if the
+                # last line of this read is actually a complete log line (i.e. ends with a newline
+                # char). If logs are written in chunks, this prevents individual chunks of the same
+                # line to be seen as separate events (for example for the min_lines counter).
+                while lines[-1][-1] != '\n' and not self.interrupt:
+                    # wait until newline character is written.
+                    # keep incomplete line when user interrupts the program, though.
+                    more = logfile[0].readline()
+                    if not more:
+                        time.sleep(.1)
+                    else:
+                        lines[-1] += more
+
                 self._files[i][1].extend(lines)
                 collected = self._files[i][1]
                 print(f"collected {len(lines)} new events from {logfile[0].name}")

@@ -52,6 +52,8 @@ with collector:
     collector.start() # will run until interrupted
 ```
 
+Watch out: log lines always need to end with a newline character (`\n`). If a line does not end with a newline character, log2http will wait indefinitely until it is written to the file.
+
 ## Local development
 
 See `requirements-dev.txt` for development requirements.

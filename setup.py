@@ -5,7 +5,7 @@ with open("README.md", "r") as ld:
 
 setup(
     name='log2http',
-    version='0.1.0',
+    version='0.1.1',
     python_requires='>=3.6',
     author='David Hamann',
     author_email='dh@davidhamann.de',

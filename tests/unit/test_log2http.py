@@ -49,7 +49,9 @@ class Log2HttpTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             LogCollector(incomplete_config)
 
-    # FIXME: basic test for LogCollector. Still missing tests for other methods.
+    # FIXME:
+    # Currently, we only have a basic test for the LogCollector workflow
+    # Still missing tests for several other methods.
     @mock.patch.object(requests, 'post')
     def test_collect(self, mock_post) -> None:
         '''Test collecting new lines'''
