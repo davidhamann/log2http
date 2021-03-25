@@ -20,7 +20,7 @@ py==1.6.0
 pycparser==2.19
 Pygments==2.2.0
 pytest==3.8.2
-PyYAML==3.13
+PyYAML==5.4
 readme-renderer==22.0
 requests==2.19.1
 requests-toolbelt==0.8.0
